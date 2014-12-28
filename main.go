@@ -33,51 +33,42 @@ func lookup(zone string, server string, record_type uint16) []string {
 }
 
 func run(opt Options) {
-	fmt.Println(opt)
 	zone := opt.zone
-	server := opt.dns1
-	// SOA
-	soa := lookup(zone, server, dns.TypeSOA)
-	for _, elem := range soa {
-		fmt.Printf("SOA: %s\n", elem)
+
+	var record_types = map[string]uint16{
+		"SOA":   dns.TypeSOA,
+		"A":     dns.TypeA,
+		"AAAA":  dns.TypeAAAA,
+		"CNAME": dns.TypeCNAME,
+		"MX":    dns.TypeMX,
+		"TXT":   dns.TypeTXT,
+		"NS":    dns.TypeNS,
 	}
 
-	// A
-	a := lookup(zone, server, dns.TypeA)
-	for _, elem := range a {
-		fmt.Printf("A: %s\n", elem)
-	}
+	fmt.Printf("Comparing %s\n", zone)
+	for name, rtype := range record_types {
+		fmt.Printf("\t%s:", name)
+		records1 := lookup(zone, opt.dns1, rtype)
+		records2 := lookup(zone, opt.dns2, rtype)
 
-	// AAAA
-	aaaa := lookup(zone, server, dns.TypeAAAA)
-	for _, elem := range aaaa {
-		fmt.Printf("AAAA: %s\n", elem)
+		if len(records1) != len(records2) {
+			fmt.Printf("ERROR: %d vs %d records\n", len(records1), len(records2))
+			continue
+		}
+		if len(records1) == 0 {
+			fmt.Printf("OK, 0 found.\n")
+			continue
+		}
+		for i, _ := range records1 {
+			a := records1[i]
+			b := records2[i]
+			if records1[i] != records2[i] {
+				fmt.Printf("ERR: %s != %s\n", a, b)
+				continue
+			}
+		}
+		fmt.Printf("OK\n")
 	}
-
-	// CNAME
-	cname := lookup(zone, server, dns.TypeCNAME)
-	for _, elem := range cname {
-		fmt.Printf("CNAME: %s\n", elem)
-	}
-
-	// MX
-	mx := lookup(zone, server, dns.TypeMX)
-	for _, elem := range mx {
-		fmt.Printf("MX: %s\n", elem)
-	}
-
-	// TXT
-	txt := lookup(zone, server, dns.TypeTXT)
-	for _, elem := range txt {
-		fmt.Printf("TXT: %s\n", elem)
-	}
-
-	// NS
-	ns := lookup(zone, server, dns.TypeNS)
-	for _, elem := range ns {
-		fmt.Printf("NS: %s\n", elem)
-	}
-
 }
 
 func main() {
