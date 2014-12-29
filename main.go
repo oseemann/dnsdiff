@@ -83,4 +83,4 @@ func main() {
     run(opt)
 }
 
-// vim: set filetype=go expandtab:
+// vim: set filetype=go ts=4 sw=4 sts=4 expandtab:
