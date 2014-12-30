@@ -6,16 +6,19 @@
 package main
 
 import (
+    "os"
     "flag"
     "fmt"
     "sort"
+    "bufio"
     "github.com/miekg/dns"
 )
 
 type Options struct {
     dns1 string
     dns2 string
-    zone string
+    name string
+    namelist string
 }
 
 type Record struct {
@@ -56,10 +59,10 @@ var record_types = map[string]uint16{
     "NS":    dns.TypeNS,
 }
 
-func lookup(zone string, server string, record_type string) Records {
+func lookup(name string, server string, record_type string) Records {
     m := new(dns.Msg)
     rt := record_types[record_type]
-    m.SetQuestion(zone, rt)
+    m.SetQuestion(name, rt)
     in, err := dns.Exchange(m, server)
     if err != nil {
         return nil
@@ -100,14 +103,12 @@ func lookup(zone string, server string, record_type string) Records {
     return ret
 }
 
-func run(opt Options) {
-    zone := opt.zone
-
-    fmt.Printf("Comparing %s\n", zone)
-    for name := range record_types {
-        fmt.Printf("\t%s:", name)
-        records1 := lookup(zone, opt.dns1, name)
-        records2 := lookup(zone, opt.dns2, name)
+func check(name, dns1, dns2 string) {
+    fmt.Printf("Comparing %s\n", name)
+    for rt := range record_types {
+        fmt.Printf("\t%s:", rt)
+        records1 := lookup(name, dns1, rt)
+        records2 := lookup(name, dns2, rt)
 
         if len(records1) != len(records2) {
             fmt.Printf("ERROR: %d vs %d records\n", len(records1), len(records2))
@@ -134,15 +135,50 @@ func run(opt Options) {
     }
 }
 
-func main() {
+func read_name_list(filename string) []string {
+    ret := make([]string, 0, 128)
+
+    file, err := os.Open(filename)
+    if err != nil {
+        return ret
+    }
+    defer file.Close()
+
+    scanner := bufio.NewScanner(file)
+    for scanner.Scan() {
+        ret = append(ret, scanner.Text())
+    }
+    return ret
+}
+
+func run(opt Options) {
+    if opt.name != "" {
+        check(opt.name, opt.dns1, opt.dns2)
+    } else if opt.namelist != "" {
+        names := read_name_list(opt.namelist)
+        for _, name := range names {
+            check(name, opt.dns1, opt.dns2)
+        }
+    }
+}
+
+func parse_flags() Options {
     opt := Options{}
 
     flag.StringVar(&opt.dns1, "dns1", "", "DNS Server Address/Name")
     flag.StringVar(&opt.dns2, "dns2", "", "DNS Server Address/Name")
-    flag.StringVar(&opt.zone, "zone", "", "DNS Zone to query")
+    flag.StringVar(&opt.name, "name", "", "Single host name to check")
+    flag.StringVar(&opt.namelist, "namelist", "", "File with host names to check")
 
     flag.Parse()
 
+    // TODO: check option consistency
+
+    return opt
+}
+
+func main() {
+    opt := parse_flags()
     run(opt)
 }
 
