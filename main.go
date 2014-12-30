@@ -140,7 +140,7 @@ func check(name, dns1, dns2 string) {
         }
         equals := make([]string, len1)
         e := 0
-        for i, _ := range records1 {
+        for i := range records1 {
             a := records1[i]
             b := records2[i]
             if a.value != b.value {
@@ -151,7 +151,10 @@ func check(name, dns1, dns2 string) {
                 e++
             }
         }
-        print_status("OK", fmt.Sprintf("all equal (%s)", equals))
+        print_status("OK", fmt.Sprintf("all equal (%d)", len(equals)))
+        for _, elem := range equals {
+            fmt.Printf("\t\t -> %s\n", elem)
+        }
     }
 }
 
