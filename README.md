@@ -7,6 +7,14 @@ Main use case is to check consistency when moving zones between name servers.
 
 I used it when moving a domain with dozens of subdomains from a plain old shared hoster with a bad DNS management interface to AWS Route 53.
 
+
+Installation
+------------
+```sh
+$ go get github.com/oseemann/dnsdiff
+$ go install github.com/oseemann/dnsdiff
+```
+
 Usage
 -----
 ```sh
