@@ -25,7 +25,6 @@ type Record struct {
 	recordtype    string
 	value         string
 	ttl           uint32
-	mx_preference uint16
 }
 
 type Records []Record
@@ -35,6 +34,7 @@ var colors bool = true
 var color_map = map[string]string{
 	"OK":    "32",
 	"ERROR": "31",
+	"WARN":  "33",
 }
 
 func (r Records) Len() int {
@@ -92,8 +92,7 @@ func lookup(name string, server string, record_type string) Records {
 			}
 		case "MX":
 			if t, ok := elem.(*dns.MX); ok {
-				r.value = t.Mx
-				r.mx_preference = t.Preference
+				r.value = fmt.Sprintf("% 3d %s", t.Preference, t.Mx)
 			}
 		case "TXT":
 			if t, ok := elem.(*dns.TXT); ok {
@@ -101,7 +100,8 @@ func lookup(name string, server string, record_type string) Records {
 			}
 		case "SOA":
 			if t, ok := elem.(*dns.SOA); ok {
-				r.value = t.Ns
+				r.value = fmt.Sprintf("%s %s %d %d %d %d %d",
+					t.Ns, t.Mbox, t.Serial, t.Refresh, t.Retry, t.Expire, t.Minttl)
 			}
 		}
 		ret[i] = r
@@ -131,29 +131,42 @@ func check(name, dns1, dns2 string) {
 		len1 := len(records1)
 		len2 := len(records2)
 		if len1 != len2 {
-			print_status("ERROR", fmt.Sprintf("%d vs %d records", len1, len2))
+			status := "ERROR"
+			if rt == "NS" {
+				// NS records are most likely not equal on different
+				// authoritative servers
+				status = "WARN"
+			}
+			print_status(status, fmt.Sprintf("%d vs %d records", len1, len2))
 			continue
 		}
 		if len1 == 0 {
 			print_status("OK", "0 records")
 			continue
 		}
-		equals := make([]string, len1)
-		e := 0
+		equals := make([]string, 0, 2*len1)
+
 		for i := range records1 {
 			a := records1[i]
 			b := records2[i]
 			if a.value != b.value {
-				print_status("ERROR", fmt.Sprintf("%s != %s", a, b))
+				status := "ERROR"
+				if rt == "SOA" || rt == "NS" {
+					// SOA and NS records are most likely not equal on
+					// different authoritative servers
+					status = "WARN"
+				}
+				print_status(status, fmt.Sprintf("%s != %s", a.value, b.value))
 				continue
 			} else {
-				equals[e] = a.value
-				e++
+				equals = append(equals, a.value)
 			}
 		}
-		print_status("OK", fmt.Sprintf("all equal (%d)", len(equals)))
-		for _, elem := range equals {
-			fmt.Printf("\t\t -> %s\n", elem)
+		if len(equals) > 0 {
+			print_status("OK", fmt.Sprintf("%d records, all equal", len(equals)))
+			for _, elem := range equals {
+				fmt.Printf("\t\t -> %s\n", elem)
+			}
 		}
 	}
 }
