@@ -30,6 +30,13 @@ type Record struct {
 
 type Records []Record
 
+var colors bool = true
+
+var color_map = map[string]string {
+    "OK": "32",
+    "ERROR": "31",
+}
+
 func (r Records) Len() int {
     return len(r)
 }
@@ -103,35 +110,48 @@ func lookup(name string, server string, record_type string) Records {
     return ret
 }
 
+func print_status(status, msg string) {
+    if colors {
+        fmt.Printf("\x1b[%sm", color_map[status])
+    }
+    fmt.Printf("- %s -", status)
+    if colors {
+        fmt.Printf("\x1b[0m")
+    }
+    fmt.Printf(" %s.\n", msg)
+}
+
 func check(name, dns1, dns2 string) {
     fmt.Printf("Comparing %s\n", name)
     for rt := range record_types {
-        fmt.Printf("\t%s:", rt)
+        fmt.Printf("\t% 6s: ", rt)
         records1 := lookup(name, dns1, rt)
         records2 := lookup(name, dns2, rt)
 
-        if len(records1) != len(records2) {
-            fmt.Printf("ERROR: %d vs %d records\n", len(records1), len(records2))
+        len1 := len(records1)
+        len2 := len(records2)
+        if len1 != len2 {
+            print_status("ERROR", fmt.Sprintf("%d vs %d records", len1, len2))
             continue
         }
-        if len(records1) == 0 {
-            fmt.Printf("OK, 0 found.\n")
+        if len1 == 0 {
+            print_status("OK", "0 records")
             continue
         }
-        equals := make([]string, len(records1))
+        equals := make([]string, len1)
         e := 0
         for i, _ := range records1 {
             a := records1[i]
             b := records2[i]
             if a.value != b.value {
-                fmt.Printf("ERR: %s != %s\n", a, b)
+                print_status("ERROR", fmt.Sprintf("%s != %s", a, b))
                 continue
             } else {
                 equals[e] = a.value
                 e++
             }
         }
-        fmt.Printf("OK all equal (%s)\n", equals)
+        print_status("OK", fmt.Sprintf("all equal (%s)", equals))
     }
 }
 
